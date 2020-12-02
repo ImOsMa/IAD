@@ -36,10 +36,21 @@ class PhoneBook:
                 for i, k in zip(data.keys(), data.values()):
                     if k != "":
                         self.df.loc[(self.df['name'] == name) & (self.df['surn'] == surn), i] = k
-                self.save_data("Data.csv")
-                return 1
             else:
                 return -1
+            if new_name != "" and new_surn == "":
+                print("Check1")
+                self.df.loc[(self.df['name'] == name) & (self.df['surn'] == surn), 'name'] = new_name
+            elif new_name == "" and new_surn != "":
+                print("Check2")
+                self.df.loc[(self.df['name'] == name) & (self.df['surn'] == surn), 'surn'] = new_surn
+            elif new_name != "" and new_surn != "-":
+                print("Check3")
+                self.df.loc[(self.df['name'] == name) & (self.df['surn'] == surn), 'name'] = new_name
+                self.df.loc[(self.df['name'] == new_name) & (self.df['surn'] == surn), 'surn'] = new_surn
+
+            self.save_data("Data.csv")
+            return 1
         else:
             return 0
 
@@ -67,7 +78,7 @@ class PhoneBook:
             nam.append(names[i])
             sur = list()
             sur.append(surnames[i])
-            self.df = self.df.loc[(self.df['name'] != names[i]) & (self.df['surn'] != surnames[i])]
+            self.df = self.df.loc[(self.df['name'] != names[i]) | (self.df['surn'] != surnames[i])]
         self.c -= dframe.shape[0]
         self.save_data("Data.csv")
         return 1
@@ -112,14 +123,15 @@ class PhoneBook:
         nearest_dates = [curr_date + DT.timedelta(days=x) for x in range(0, 31)]
         dates = self.df['date'].to_list()
         dates = set(dates)
+        buf = pd.DataFrame(self.dict)
         for i in dates:
             birthday = DT.datetime.strptime(i, "%d.%m.%Y")
             if birthday.month - curr_date.month > 1:
                 continue
             for n_date in nearest_dates:
                 if n_date.month == birthday.month and n_date.day == birthday.day:
-                    buf = self.df.loc[(self.df['date'] == i)]
-                    print(buf[["name", "surn"]])
+                    buf = buf.append(self.df.loc[(self.df['date'] == i)], ignore_index = True)
+        print(buf[["name", "surn"]])
 
     def print_data_higher_N(self, n: int, comp: str):
 
@@ -245,7 +257,7 @@ class Menu:
                     data[list(data.keys())[i]] = ""
                     continue
 
-                while Corrector.date_corrector(date=val) == -1:
+                while Corrector.date_corrector(date=val) == -1 and val != "-":
                     print("Please enter correct value or don't enter value!!!")
                     val = str(input(com_list[i] + " (example: " + example_list[i] + "): "))
                     if val == "-":
@@ -253,19 +265,15 @@ class Menu:
                         continue
 
                 val = Corrector.date_corrector(date=val)
-                data[list(data.keys())[i]] = val
+                if val != -1:
+                    data[list(data.keys())[i]] = val
+                else:
+                    data[list(data.keys())[i]] = ""
 
             elif list(data.keys())[i] == 'mphone':
-
-                if val == "-":
-                    data[list(data.keys())[i]] = ""
-                    continue
                 while Corrector.mob_corrector(val) == "":
                     print("Please enter correct value!!!")
                     val = str(input(com_list[i] + " (example: " + example_list[i] + "): "))
-                    if val == "-":
-                        data[list(data.keys())[i]] = ""
-                        continue
                 val = Corrector.mob_corrector(mphone=val)
                 data[list(data.keys())[i]] = val
 
@@ -273,7 +281,7 @@ class Menu:
                 if val == "-":
                     data[list(data.keys())[i]] = ""
                     continue
-                while Corrector.phone_corrector(val) == "":
+                while Corrector.phone_corrector(val) == "" and val != "-":
                     print("Please enter correct value or don't enter value!!!")
                     val = str(input(com_list[i] + " (example: " + example_list[i] + "): "))
                     if val == "-":
@@ -295,12 +303,20 @@ class Menu:
             print("If you want re-fill in the data, enter the 3")
             a = str(input("Enter the number: "))
 
-            while not a.isdigit()  and int(a) > 3  and int(a) <= 0:
-                a = str(input("Enter the number: "))
+            while not a.isdigit():
+                if not a.isdigit():
+                    print("Please, enter the correct variant!!!")
+                    a = input("Please, enter the number [1..3]: ")
+                elif int(a) > 3 and int(a) <= 0:
+                    print("Please, enter the correct variant!!!")
+                    a = input("Please, enter the number [1..3]: ")
+                else:
+                    continue
+
             if int(a) == 1:
                 Menu.commands()
             elif int(a) == 2:
-                Client.change_record() #not
+                Client.changing_record()
             elif int(a) == 3:
                 Client.adding()
 
@@ -311,8 +327,14 @@ class Menu:
         print("Enter 3, if you want to change record")
         print("Enter 4, to back to menu")
         a = str(input("Enter the number: "))
-        while not a.isdigit()  and int(a) > 4 and int(a) <= 0:
-            a = str(input("Enter the number: "))
+        while not a.isdigit():
+            if not a.isdigit():
+                print("Please, enter the correct value!!!")
+                a = input("Please, enter the number [1..4]: ")
+            elif int(a) > 4 and int(a) <= 0:
+              print("Please, enter the correct variant!!!")
+              a = input("Please, enter the number [1..4]: ")
+
 
         data = {'name': "", 'surn': "", 'date': "", 'mphone': "", 'hphone': [], 'wphone': []}
         com_list = ['Name', 'Surname', 'Date of birthday', 'Mob Phone', "Home Phone", "Work Phone"]
@@ -336,7 +358,7 @@ class Menu:
                         data[list(data.keys())[i]] = ""
                         continue
 
-                    while Corrector.name_surn_correct(name=val) == "":
+                    while Corrector.name_surn_correct(name=val) == "" and val != "-":
                         print("Please enter correct value!!!")
                         val = str(input(com_list[i] + " (example: " + example_list[i] + "): "))
                         if val == "-":
@@ -351,7 +373,7 @@ class Menu:
                         data[list(data.keys())[i]] = ""
                         continue
 
-                    while Corrector.date_corrector(date=val) == -1:
+                    while Corrector.date_corrector(date=val) == -1 and val != "-":
                         print("Please enter correct value or don't enter value!!!")
                         val = str(input(com_list[i] + " (example: " + example_list[i] + "): "))
                         if val == "-":
@@ -359,14 +381,17 @@ class Menu:
                             continue
 
                     val = Corrector.date_corrector(date=val)
-                    data[list(data.keys())[i]] = val
+                    if val != -1:
+                        data[list(data.keys())[i]] = val
+                    else:
+                        data[list(data.keys())[i]] = ""
 
                 elif list(data.keys())[i] == 'mphone':
                     if val == "-":
                         data[list(data.keys())[i]] = ""
                         continue
 
-                    while Corrector.mob_corrector(val) == "":
+                    while Corrector.mob_corrector(val) == "" and val != "-":
                         print("Please enter correct value!!!")
                         val = str(input(com_list[i] + " (example: " + example_list[i] + "): "))
                         if val == "-":
@@ -379,7 +404,7 @@ class Menu:
                     if val == "-":
                         data[list(data.keys())[i]] = ""
                         continue
-                    while Corrector.phone_corrector(val) == "":
+                    while Corrector.phone_corrector(val) == "" and val != "-":
                         print("Please enter correct value or don't enter value!!!")
                         val = str(input(com_list[i] + " (example: " + example_list[i] + "): "))
                         if val == "-":
@@ -410,12 +435,12 @@ class Menu:
                     print(val)
                     data[list(data.keys())[i]] = val
 
-                elif list(data.keys())[i] == 'date':
+                if list(data.keys())[i] == 'date':
                     if val == "-":
                         data[list(data.keys())[i]] = ""
                         continue
 
-                    while Corrector.date_corrector(date=val) == -1:
+                    while Corrector.date_corrector(date=val) == -1 and val != "-":
                         print("Please enter correct value or don't enter value!!!")
                         val = str(input(com_list[i] + " (example: " + example_list[i] + "): "))
                         if val == "-":
@@ -423,27 +448,32 @@ class Menu:
                             continue
 
                     val = Corrector.date_corrector(date=val)
-                    data[list(data.keys())[i]] = val
+                    if val != -1:
+                        data[list(data.keys())[i]] = val
+                    else:
+                        data[list(data.keys())[i]] = ""
 
-                elif list(data.keys())[i] == 'mphone':
+                if list(data.keys())[i] == 'mphone':
                     if val == "-":
                         data[list(data.keys())[i]] = ""
                         continue
 
-                    while Corrector.mob_corrector(val) == "":
+                    while Corrector.mob_corrector(val) and val != "-":
                         print("Please enter correct value!!!")
                         val = str(input(com_list[i] + " (example: " + example_list[i] + "): "))
                         if val == "-":
                             data[list(data.keys())[i]] = ""
                             continue
+
+
                     val = Corrector.mob_corrector(mphone=val)
                     data[list(data.keys())[i]] = val
 
-                elif list(data.keys())[i] == 'hphone' or list(data.keys())[i] == 'wphone':
+                if list(data.keys())[i] == 'hphone' or list(data.keys())[i] == 'wphone':
                     if val == "-":
                         data[list(data.keys())[i]] = ""
                         continue
-                    while Corrector.phone_corrector(val) == "":
+                    while Corrector.phone_corrector(val) == "" and val != "-":
                         print("Please enter correct value or don't enter value!!!")
                         val = str(input(com_list[i] + " (example: " + example_list[i] + "): "))
                         if val == "-":
@@ -459,7 +489,7 @@ class Menu:
                     if new_name == "-":
                         new_name = ""
                         continue
-                    while Corrector.name_surn_correct(name=new_name) == "":
+                    while Corrector.name_surn_correct(name=new_name) == "" and val != "-":
                         print("Please enter correct value!!!")
                         new_name = str(input("New Name" + " (example: " + "Islam" + "): "))
                         if new_name == "-":
@@ -471,7 +501,7 @@ class Menu:
                     if new_surname == "-":
                         new_surname = ""
                         continue
-                    while Corrector.name_surn_correct(name=new_surname) == "":
+                    while Corrector.name_surn_correct(name=new_surname) == "" and val != "-":
                         print("Please enter correct value!!!")
                         new_surname = str(input("New Surname" + " (example: " + "Osmanov" + "): "))
                         if new_surname == "-":
@@ -501,8 +531,15 @@ class Menu:
         print("Enter 3, if you want to remove record, finding with Mobile Phone")
         print("Enter 4, to back to menu")
         a = input("Enter the number: ")
-        while a.isdigit() and int(a) > 4 and int(a) <= 0:
-            a = input("Enter the number: ")
+        while not a.isdigit():
+            if not a.isdigit():
+                print("Please, enter the correct variant!!!")
+                a = input("Please, enter the number [1..4]: ")
+            elif int(a) > 8 and int(a) <= 0:
+                print("Please, enter the correct variant!!!")
+                a = input("Please, enter the number [1..4]: ")
+            else:
+                continue
 
         a = int(a)
         if a == 1:
@@ -553,32 +590,21 @@ class Menu:
                   for i in range(2):
                       if i == 0:
                           new_name = str(input("Name" + " (example: " + "Islam" + "): "))
-                          if new_name == "-":
-                              new_name = ""
-                              continue
                           while Corrector.name_surn_correct(name=new_name) == "":
                               print("Please enter correct value!!!")
                               new_name = str(input("Name" + " (example: " + "Islam" + "): "))
-                              if new_name == "-":
-                                  new_name = ""
-                                  continue
 
                       if i == 1:
                           new_surname = str(input("Surname" + " (example: " + "Osmanov" + "): "))
-                          if new_surname == "-":
-                              new_surname = ""
-                              continue
                           while Corrector.name_surn_correct(name=new_surname) == "":
                               print("Please enter correct value!!!")
                               new_surname = str(input("Surname" + " (example: " + "Osmanov" + "): "))
-                              if new_surname == "-":
-                                  new_surname = ""
-                                  continue
 
-                  self.user.delete_record_val_with_tag(dframe=self.user.delete_record_val_with_phone(mob), data={'name': new_name, 'surn': new_surname})
+                  self.user.delete_record_val_with_tag(dframe=self.user.delete_record_val_with_phone(mob), data={'name':new_name, 'surn':new_surname})
                   print("Deleting was successful!")
                   time.sleep(2)
                   Menu.commands()
+
                 else:
                     self.user.delete_record_val_with_tag(dframe=self.user.delete_record_val_with_phone(mob), data={'mphone': mob})
                     print("Deleting was successful!")
@@ -596,7 +622,7 @@ class Menu:
         a = str(input("Please enter 1 for going the main menu: "))
         while a != "1":
             print("Enter correct value")
-            a = str("Please enter 1 for going the main menu: ")
+            a = str(input("Please enter 1 for going the main menu: "))
 
         Menu.commands()
 
@@ -624,7 +650,6 @@ class Menu:
             age = input("Age (example: 18): ")
 
         val = str(input("Enter the < or > or = : "))
-        print(val)
         while val not in [">", "<", "="]:
             print("Enter correct value!")
             val = str(input("Enter the < or > or = : "))
@@ -633,7 +658,7 @@ class Menu:
         a = str(input("Please enter 1 for going the main menu: "))
         while a != "1":
             print("Enter correct value")
-            a = str("Please enter 1 for going the main menu: ")
+            a = str(input("Please enter 1 for going the main menu: "))
         Menu.commands()
 
     def search_record(self):
@@ -654,7 +679,7 @@ class Menu:
                     data[list(data.keys())[i]] = ""
                     continue
 
-                while Corrector.name_surn_correct(name=val) == "":
+                while Corrector.name_surn_correct(name=val) == "" and val != "-":
                     print("Please enter correct value!!!")
                     val = str(input(com_list[i] + " (example: " + example_list[i] + "): "))
                     if val == "-":
@@ -669,22 +694,24 @@ class Menu:
                     data[list(data.keys())[i]] = ""
                     continue
 
-                while Corrector.date_corrector(date=val) == -1:
+                while Corrector.date_corrector(date=val) == -1 and val != "-":
                     print("Please enter correct value or don't enter value!!!")
                     val = str(input(com_list[i] + " (example: " + example_list[i] + "): "))
                     if val == "-":
                         data[list(data.keys())[i]] = ""
                         continue
-
                 val = Corrector.date_corrector(date=val)
-                data[list(data.keys())[i]] = val
+                if val != -1:
+                    data[list(data.keys())[i]] = val
+                else:
+                    data[list(data.keys())[i]] = ""
 
             elif list(data.keys())[i] == 'mphone':
                 if val == "-":
                     data[list(data.keys())[i]] = ""
                     continue
 
-                while Corrector.mob_corrector(val) == "":
+                while Corrector.mob_corrector(val) == "" and val != "-":
                     print("Please enter correct value!!!")
                     val = str(input(com_list[i] + " (example: " + example_list[i] + "): "))
                     if val == "-":
@@ -697,7 +724,7 @@ class Menu:
                 if val == "-":
                     data[list(data.keys())[i]] = ""
                     continue
-                while Corrector.phone_corrector(val) == "":
+                while Corrector.phone_corrector(val) == "" and val != "-":
                     print("Please enter correct value or don't enter value!!!")
                     val = str(input(com_list[i] + " (example: " + example_list[i] + "): "))
                     if val == "-":
@@ -712,7 +739,7 @@ class Menu:
         a = str(input("Please enter 1 for going the main menu: "))
         while a != "1":
             print("Enter correct value")
-            a = str("Please enter 1 for going the main menu: ")
+            a = str(input("Please enter 1 for going the main menu: "))
         Menu.commands()
 
     def print_age_man(self):
@@ -783,7 +810,6 @@ if __name__ == "__main__":
             Client.print_age_man()
         elif a == 8:
             break;
-
 
 
 
