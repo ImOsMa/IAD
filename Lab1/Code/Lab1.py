@@ -783,8 +783,3 @@ if __name__ == "__main__":
             Client.print_age_man()
         elif a == 8:
             break;
-
-
-
-
-
